@@ -1,0 +1,49 @@
+name: Trigger auto deployment for bolify-stream
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/bolify-stream-AutoDeployTrigger-0a0fc585-5fde-48e0-9636-4a62bc02b230.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.BOLIFYSTREAM_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.BOLIFYSTREAM_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.BOLIFYSTREAM_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: codeastraregistry.azurecr.io
+          registryUsername: ${{ secrets.BOLIFYSTREAM_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.BOLIFYSTREAM_REGISTRY_PASSWORD }}
+          containerAppName: bolify-stream
+          resourceGroup: vaani-ai-prod
+          imageToBuild: codeastraregistry.azurecr.io/bolify-stream:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
